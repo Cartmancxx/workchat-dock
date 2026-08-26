@@ -1,6 +1,6 @@
 # Social launch copy
 
-Replace `REPO_URL` with the final GitHub repository URL before publishing.
+Repository: https://github.com/Cartmancxx/workchat-dock
 
 ## 小红书
 
@@ -25,16 +25,16 @@ Replace `REPO_URL` with the final GitHub repository URL before publishing.
 
 完全本地运行，不上传聊天内容。项目已经 MIT 开源，欢迎体验、提建议、一起完善软件目录。
 
-GitHub：REPO_URL
+GitHub：https://github.com/Cartmancxx/workchat-dock
 
 #效率工具 #电商运营 #跨境电商 #桌面整理 #开源软件 #Windows软件 #生产力工具 #独立开发
 
 ## X / Twitter
 
-Meet **WorkChat Dock** — one elegant tray icon for WeChat, DingTalk, Feishu, Teams, Slack, Telegram and 18+ more work apps. One-click launch, compact hover dock, unread alerts, auto-discovery, Windows + native Apple Silicon macOS. MIT open source: REPO_URL
+Meet **WorkChat Dock** — one elegant tray icon for WeChat, DingTalk, Feishu, Teams, Slack, Telegram and 18+ more work apps. One-click launch, compact hover dock, unread alerts, auto-discovery, Windows + native Apple Silicon macOS. MIT: https://github.com/Cartmancxx/workchat-dock
 
 #opensource #productivity #ecommerce #Windows #macOS
 
 ## X 中文版
 
-发布了 WorkChat Dock：把微信、钉钉、飞书、京ME、Zalo 等 24 款工作软件收进一个托盘图标。一键启动、悬停展开、未读提醒、自动识别，也支持手动添加。Windows + Apple Silicon macOS，MIT 开源：REPO_URL
+发布了 WorkChat Dock：把微信、钉钉、飞书、京ME、Zalo 等 24 款工作软件收进一个托盘图标。一键启动、悬停展开、未读提醒、自动识别，也支持手动添加。Windows + Apple Silicon macOS，MIT 开源：https://github.com/Cartmancxx/workchat-dock
