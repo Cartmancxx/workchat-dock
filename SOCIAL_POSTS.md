@@ -6,7 +6,7 @@ Repository: https://github.com/Cartmancxx/workchat-dock
 
 ### 标题
 
-我把 4 个办公聊天软件，收进了 1 个图标｜电商人桌面救星
+我把多个办公聊天软件，收进了 1 个图标｜电商人桌面救星
 
 ### 正文
 
