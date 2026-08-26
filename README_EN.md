@@ -6,6 +6,14 @@
 
 WorkChat Dock brings your workplace messengers into one compact system-tray entry. Launch everything with one click, hover to open a slim vertical dock, jump to the app with new messages, and keep the original tray icons tucked away.
 
+## Downloads & Promo
+
+- [Latest Windows x64 and macOS Apple Silicon builds](https://github.com/Cartmancxx/workchat-dock/releases/latest)
+- [Watch the 1080p product promo](https://github.com/Cartmancxx/workchat-dock/releases/download/v2.0.0/WorkChatDock-Promo-BGM.mp4)
+- [SFX-only version without BGM](https://github.com/Cartmancxx/workchat-dock/releases/download/v2.0.0/WorkChatDock-Promo-NoBGM.mp4)
+
+The macOS artifact is compiled natively for arm64 on GitHub’s `macos-14` runner and ad-hoc signed. If Gatekeeper prompts on first launch, right-click the app in Finder and choose **Open**.
+
 ## Highlights
 
 - One-click launch for every enabled work app

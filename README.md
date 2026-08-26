@@ -6,6 +6,14 @@
 
 把国内外主流办公与聊天软件收进一个托盘入口：一键全部启动、鼠标移入纵向展开、自动索引安装位置，并在检测到新消息时切换和闪烁主图标。仓库同时包含 Windows 和 Apple Silicon macOS 两套原生实现。
 
+## 下载与宣传片
+
+- [下载最新版：Windows x64 / macOS Apple Silicon](https://github.com/Cartmancxx/workchat-dock/releases/latest)
+- [观看 1080p 产品宣传片](https://github.com/Cartmancxx/workchat-dock/releases/download/v2.0.0/WorkChatDock-Promo-BGM.mp4)
+- [无 BGM、保留音效版](https://github.com/Cartmancxx/workchat-dock/releases/download/v2.0.0/WorkChatDock-Promo-NoBGM.mp4)
+
+macOS 成品由 GitHub Actions 在 `macos-14` 上原生编译为 arm64，并使用 ad-hoc 签名。首次打开若被 Gatekeeper 提示，请在 Finder 中右键应用并选择“打开”。
+
 ## 已实现
 
 - 桌面生成 **“一键打开办公软件”** 快捷方式
