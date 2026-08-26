@@ -5,7 +5,7 @@ import Foundation
 import SwiftUI
 
 @MainActor
-final class DockModel: ObservableObject {
+final class DockModel: NSObject, ObservableObject {
     @Published private(set) var apps: [DockApp] = []
     @Published private(set) var menuIcon = NSImage()
     @Published var statusText = "正在自动识别软件…"
@@ -19,10 +19,11 @@ final class DockModel: ObservableObject {
         pattern: #"(?:^|\s)[\(（\[]([0-9]{1,3})[\)）\]]"#
     )
 
-    init() {
+    override init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("WorkChatDock", isDirectory: true)
         configURL = support.appendingPathComponent("config.json")
+        super.init()
         apps = loadAndMergeCatalog()
         refreshMenuIcon()
 
@@ -114,7 +115,7 @@ final class DockModel: ObservableObject {
             ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
             ?? url.deletingPathExtension().lastPathComponent
         let bundleIdentifier = bundle?.bundleIdentifier
-        var base = displayName.lowercased().map { $0.isLetter || $0.isNumber ? $0 : "-" }
+        let base = displayName.lowercased().map { $0.isLetter || $0.isNumber ? $0 : "-" }
         var id = String(base).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
         if id.isEmpty { id = "custom-app" }
         var suffix = 2
@@ -157,17 +158,30 @@ final class DockModel: ObservableObject {
     private func startTimers() {
         accessibilityAllowed = AXIsProcessTrusted()
         stateTimer?.invalidate()
-        stateTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshRuntimeState() }
-        }
+        stateTimer = Timer.scheduledTimer(
+            timeInterval: 3,
+            target: self,
+            selector: #selector(stateTimerFired),
+            userInfo: nil,
+            repeats: true
+        )
         flashTimer?.invalidate()
-        flashTimer = Timer.scheduledTimer(withTimeInterval: 0.62, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                self.flashPhase.toggle()
-                self.refreshMenuIcon()
-            }
-        }
+        flashTimer = Timer.scheduledTimer(
+            timeInterval: 0.62,
+            target: self,
+            selector: #selector(flashTimerFired),
+            userInfo: nil,
+            repeats: true
+        )
+    }
+
+    @objc private func stateTimerFired() {
+        refreshRuntimeState()
+    }
+
+    @objc private func flashTimerFired() {
+        flashPhase.toggle()
+        refreshMenuIcon()
     }
 
     private func refreshRuntimeState() {
