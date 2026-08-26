@@ -28,6 +28,13 @@ jobs:
             tail -n 240 macos-build.log 2>/dev/null || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if test "${{ steps.build.outcome }}" != "success"; then
+            LOG="$(tail -n 180 macos-build.log 2>/dev/null || true)"
+            LOG="${LOG//'%'/'%25'}"
+            LOG="${LOG//$'\r'/'%0D'}"
+            LOG="${LOG//$'\n'/'%0A'}"
+            echo "::error title=macOS arm64 compiler output::$LOG"
+          fi
           test "${{ steps.build.outcome }}" = "success"
       - uses: actions/upload-artifact@v4
         with:
