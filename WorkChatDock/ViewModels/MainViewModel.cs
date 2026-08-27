@@ -21,6 +21,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool _isBusy;
     private string _statusMessage = "正在初始化…";
     private string _notificationMode = "正在检测";
+    private int _notificationTestIndex;
 
     public MainViewModel(
         ConfigService configService,
@@ -323,6 +324,20 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _shortcutService.CreateLaunchAllShortcut();
         StatusMessage = $"桌面快捷方式已创建：{Path.GetFileName(_shortcutService.ShortcutPath)}";
         NoticeRequested?.Invoke("桌面已创建“一键打开办公软件”。");
+    }
+
+    public void TriggerNotificationTest()
+    {
+        var candidates = DockApps.Count > 0 ? DockApps : Apps;
+        if (candidates.Count == 0)
+        {
+            NoticeRequested?.Invoke("请先添加或定位至少一个聊天软件。");
+            return;
+        }
+
+        var app = candidates[_notificationTestIndex++ % candidates.Count];
+        _notificationMonitor.TriggerTestNotification(app.Id, 3, TimeSpan.FromSeconds(8));
+        StatusMessage = $"提醒测试中：托盘聚合图标应切换为 {app.DisplayName} 并闪烁 8 秒";
     }
 
     public async Task ToggleStartWithWindowsAsync(bool enabled)

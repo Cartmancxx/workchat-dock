@@ -22,6 +22,19 @@ Check(new[] { "wechat", "wecom", "qq", "teams", "slack", "zoom", "telegram", "wh
         .All(id => defaults.Any(app => app.Id == id)),
     "domestic and international catalogue entries exist");
 
+Check(NotificationMonitorService.ExtractUnreadCount("(3) 飞书") == 3,
+    "unread count parses parenthesized prefix");
+Check(NotificationMonitorService.ExtractUnreadCount("钉钉 (12)") == 12,
+    "unread count parses parenthesized suffix");
+Check(NotificationMonitorService.ExtractUnreadCount("Zalo - 5 new messages") == 5,
+    "unread count parses English message text");
+Check(NotificationMonitorService.ExtractUnreadCount("京ME · 8 条新消息") == 8,
+    "unread count parses Chinese message text");
+Check(NotificationMonitorService.ExtractUnreadCount("● Slack") == 1,
+    "unread marker parses as one message");
+Check(NotificationMonitorService.ExtractUnreadCount("飞书 / Lark") == 0,
+    "normal title has no false unread count");
+
 var testData = Path.Combine(AppContext.BaseDirectory, "smoke-data");
 Environment.SetEnvironmentVariable("WORKCHATDOCK_DATA_DIR", testData);
 var configService = new ConfigService();

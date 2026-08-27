@@ -29,6 +29,8 @@ public partial class App : Application
             ? "launch-all"
             : e.Args.Contains("--show-flyout", StringComparer.OrdinalIgnoreCase)
                 ? "show-flyout"
+                : e.Args.Contains("--test-notification", StringComparer.OrdinalIgnoreCase)
+                    ? "test-notification"
                 : "show";
         if (!_singleInstance.TryAcquire())
         {
@@ -94,6 +96,11 @@ public partial class App : Application
             {
                 await _viewModel.LaunchAllAsync();
             }
+            else if (e.Args.Contains("--test-notification", StringComparer.OrdinalIgnoreCase))
+            {
+                _viewModel.TriggerNotificationTest();
+                _mainWindow.ShowControlPanel();
+            }
             else if (!e.Args.Contains("--background", StringComparer.OrdinalIgnoreCase))
             {
                 _mainWindow.ShowControlPanel();
@@ -150,6 +157,11 @@ public partial class App : Application
             else if (string.Equals(command, "show-flyout", StringComparison.OrdinalIgnoreCase))
             {
                 _flyout?.ShowNearCursor(holdForPreview: true);
+            }
+            else if (string.Equals(command, "test-notification", StringComparison.OrdinalIgnoreCase) &&
+                     _viewModel is not null)
+            {
+                _viewModel.TriggerNotificationTest();
             }
             else
             {

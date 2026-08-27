@@ -179,10 +179,14 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Ellipse Width="7" Height="7" Fill="#2F7BFF" Margin="0,0,10,0" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Foreground="#AAB2C2" FontSize="12" VerticalAlignment="Center" />
-                    <CheckBox Grid.Column="2" IsChecked="{Binding ManageTrayIcons}" Content="自动固定聚合图标并收纳原图标"
+                    <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="测试提醒"
+                            Click="NotificationTestButton_Click" Padding="12,7" Margin="14,0,0,0"
+                            ToolTip="让托盘聚合图标切换并闪烁 8 秒" />
+                    <CheckBox Grid.Column="3" IsChecked="{Binding ManageTrayIcons}" Content="自动固定聚合图标并收纳原图标"
                               Foreground="#AAB2C2" FontSize="11" VerticalAlignment="Center" Margin="18,0,0,0" />
                 </Grid>
             </Border>

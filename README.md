@@ -23,7 +23,7 @@ macOS 成品由 GitHub Actions 在 `macos-14` 上原生编译为 arm64，并使�
 - 每个软件显示运行状态、未读状态和消息数量
 - 新消息到来后，主图标切换为消息来源并闪烁
 - 点击主图标直接打开最近产生消息的软件
-- Windows 通知监听；权限不可用时自动降级到窗口标题检测
+- Windows 通知与隐藏窗口标题并行检测；控制面板提供“测试提醒”按钮
 - 内置 24 个主流软件定义：微信、企业微信、QQ、TIM、钉钉、飞书/Lark、京ME、腾讯会议、Teams、Slack、Zoom、Webex、Outlook、Notion、Telegram、WhatsApp、Signal、Discord、LINE、Viber、KakaoTalk、Mattermost、Rocket.Chat、Zalo
 - 从运行进程、App Paths、开始菜单快捷方式、卸载注册表和软件专用目录自动索引
 - 未收录的软件可直接选择 exe 手动添加，也可移除自定义条目
@@ -94,9 +94,9 @@ WorkChatDock.exe --smoke-test    本地冒烟测试后退出
 
 ## 消息检测
 
-首选 `UserNotificationListener` 读取 Windows 当前通知的来源和标识。程序只保留应用 ID、通知 ID和计数，不保存聊天正文，也不进行联网传输。
+程序并行使用 `UserNotificationListener` 与隐藏窗口标题检测，不会因为 Windows 返回了通知权限却没有返回桌面客户端通知而跳过后备检测。程序只保留应用 ID、通知 ID 和计数，不保存聊天正文，也不进行联网传输。
 
-当 Windows 通知权限未开放时，程序使用窗口标题中的未读数量作为降级信号。部分客户端关闭系统通知后，检测精度取决于该客户端暴露的窗口状态。
+窗口检测支持 `(3) 飞书`、`钉钉 (12)`、`5 new messages`、`8 条新消息` 等常见格式，并以 2 秒间隔刷新。控制面板底部的 **测试提醒** 会依次模拟各软件的 8 秒提醒，可单独验证图标切换、闪烁和点击直达链路。部分客户端同时关闭系统通知且不暴露未读窗口状态时，检测精度仍取决于客户端自身能力。
 
 ## 从源码构建
 

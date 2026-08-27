@@ -20,6 +20,7 @@ The macOS artifact is compiled natively for arm64 on GitHub’s `macos-14` runne
 - A single aggregate tray icon with a compact hover flyout
 - Opens an existing window instead of creating duplicate instances
 - Switches to the source app icon and flashes when unread activity is detected
+- Runs Windows toast and hidden-window-title detection in parallel, with a built-in alert test button
 - Automatically discovers 24 popular domestic and international apps
 - Manual app picker for software that is not yet in the built-in catalog
 - Automatically pins WorkChat Dock and moves managed app icons into tray overflow on Windows 11
@@ -82,6 +83,10 @@ WorkChatDockMac/dist/WorkChatDock-macOS-arm64.zip
 ```
 
 The included GitHub Actions workflow can build the arm64 artifact on a `macos-14` runner.
+
+## Unread Detection
+
+On Windows, `UserNotificationListener` results are merged with a two-second hidden-window-title poll. Common formats such as `(3) Feishu`, `DingTalk (12)`, `5 new messages`, and `8 条新消息` are recognized. The **Test Alert** button simulates an eight-second unread state so icon switching, flashing, and click-through can be verified independently from third-party notification settings.
 
 ## Privacy
 

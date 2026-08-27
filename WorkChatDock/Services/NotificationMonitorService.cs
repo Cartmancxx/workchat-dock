@@ -1,16 +1,28 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 using Windows.UI.Notifications;
 using Windows.UI.Notifications.Management;
+using WorkChatDock.Interop;
 using WorkChatDock.Models;
 
 namespace WorkChatDock.Services;
 
 public sealed class NotificationMonitorService : IDisposable
 {
-    private static readonly Regex UnreadTitlePattern = new(
-        @"(?:^|\s)[\(（\[](?<count>\d{1,3})[\)）\]]",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex[] UnreadTitlePatterns =
+    [
+        new(@"[\(（\[【]\s*(?<count>\d{1,4})\s*[\)）\]】]",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant),
+        new(@"(?<count>\d{1,4})\s*(?:条|則|封)?\s*(?:新消息|新訊息|未读|未讀|消息|訊息|通知|unread|new\s+messages?)",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase),
+        new(@"(?:未读|未讀|消息|訊息|通知|unread|new\s+messages?)\s*[:：]?\s*(?<count>\d{1,4})",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)
+    ];
+
+    private static readonly Regex UnreadMarkerPattern = new(
+        @"(?:^|\s)(?:●|•)\s*|\bnew\s+message\b",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     private readonly object _sync = new();
     private readonly SemaphoreSlim _pollGate = new(1, 1);
@@ -25,6 +37,9 @@ public sealed class NotificationMonitorService : IDisposable
     private Timer? _timer;
     private bool _nativeNotificationAccess;
     private bool _nativeNotificationSubscribed;
+    private string? _testAppId;
+    private DateTimeOffset _testUntil;
+    private int _testCount;
     private bool _disposed;
 
     public string ModeText { get; private set; } = "窗口状态检测";
@@ -33,7 +48,6 @@ public sealed class NotificationMonitorService : IDisposable
     public async Task InitializeAsync(IEnumerable<AppDefinition> apps)
     {
         _apps = apps.ToList();
-        var pollInterval = TimeSpan.FromSeconds(2);
         try
         {
             var access = await UserNotificationListener.Current.RequestAccessAsync();
@@ -44,8 +58,7 @@ public sealed class NotificationMonitorService : IDisposable
                 {
                     UserNotificationListener.Current.NotificationChanged += OnNativeNotificationChanged;
                     _nativeNotificationSubscribed = true;
-                    ModeText = "Windows 通知监听";
-                    pollInterval = TimeSpan.FromSeconds(15);
+                    ModeText = "Windows 通知 + 窗口检测";
                 }
                 catch
                 {
@@ -53,7 +66,7 @@ public sealed class NotificationMonitorService : IDisposable
                     // fail to register the WinRT event with ERROR_NOT_FOUND (0x80070490).
                     // Native polling may still work, so retain it without crashing startup.
                     _nativeNotificationSubscribed = false;
-                    ModeText = "Windows 通知轮询";
+                    ModeText = "通知轮询 + 窗口检测";
                 }
             }
             else
@@ -68,7 +81,23 @@ public sealed class NotificationMonitorService : IDisposable
             ModeText = "窗口状态检测";
         }
 
-        _timer = new Timer(async _ => await PollSafelyAsync(), null, TimeSpan.Zero, pollInterval);
+        // Always poll quickly. Some desktop clients update only a hidden window title and
+        // some WinRT notification providers do not raise NotificationChanged reliably.
+        _timer = new Timer(async _ => await PollSafelyAsync(), null, TimeSpan.Zero,
+            TimeSpan.FromSeconds(2));
+    }
+
+    public void TriggerTestNotification(string appId, int count = 3,
+        TimeSpan? duration = null)
+    {
+        lock (_sync)
+        {
+            _testAppId = appId;
+            _testCount = Math.Max(1, count);
+            _testUntil = DateTimeOffset.Now + (duration ?? TimeSpan.FromSeconds(8));
+        }
+
+        _ = PollSafelyAsync();
     }
 
     public void MarkAcknowledged(string appId)
@@ -106,14 +135,29 @@ public sealed class NotificationMonitorService : IDisposable
 
         try
         {
-            var counts = _nativeNotificationAccess
-                ? await PollWindowsNotificationsAsync()
-                : PollWindowTitles();
+            // Do not make the detectors mutually exclusive. Unpackaged desktop apps can
+            // receive an "Allowed" WinRT result but still expose no toast collection.
+            var counts = PollWindowTitles();
+            if (_nativeNotificationAccess)
+            {
+                try
+                {
+                    var nativeCounts = await PollWindowsNotificationsAsync();
+                    MergeMaximum(counts, nativeCounts);
+                }
+                catch
+                {
+                    // Hidden-window detection remains active when WinRT is unavailable.
+                }
+            }
+
+            ApplyTestOverride(counts);
             PublishIfChanged(counts);
         }
         catch
         {
             var counts = PollWindowTitles();
+            ApplyTestOverride(counts);
             PublishIfChanged(counts);
         }
         finally
@@ -135,12 +179,20 @@ public sealed class NotificationMonitorService : IDisposable
 
         foreach (var notification in notifications)
         {
-            var displayName = notification.AppInfo.DisplayInfo.DisplayName ?? string.Empty;
-            var appUserModelId = notification.AppInfo.AppUserModelId ?? string.Empty;
+            string displayName;
+            string appUserModelId;
+            try
+            {
+                displayName = notification.AppInfo.DisplayInfo.DisplayName ?? string.Empty;
+                appUserModelId = notification.AppInfo.AppUserModelId ?? string.Empty;
+            }
+            catch
+            {
+                continue;
+            }
+
             var app = _apps.FirstOrDefault(candidate =>
-                candidate.NotificationNames.Any(name =>
-                    displayName.Contains(name, StringComparison.OrdinalIgnoreCase) ||
-                    appUserModelId.Contains(name, StringComparison.OrdinalIgnoreCase)));
+                IsNotificationIdentityMatch(candidate, displayName, appUserModelId));
             if (app is null)
             {
                 continue;
@@ -183,10 +235,7 @@ public sealed class NotificationMonitorService : IDisposable
                     continue;
                 }
 
-                var counts = UnreadTitlePattern.Matches(signature)
-                    .Select(match => int.TryParse(match.Groups["count"].Value, out var value) ? value : 0)
-                    .ToArray();
-                result[app.Id] = counts.Length == 0 ? 0 : Math.Max(1, counts.Max());
+                result[app.Id] = ExtractUnreadCount(signature);
             }
         }
 
@@ -196,6 +245,7 @@ public sealed class NotificationMonitorService : IDisposable
     private static string GetWindowTitleSignature(AppDefinition app)
     {
         var titles = new List<string>();
+        var processIds = new HashSet<uint>();
         foreach (var processName in app.ProcessNames)
         {
             foreach (var process in Process.GetProcessesByName(processName))
@@ -204,6 +254,7 @@ public sealed class NotificationMonitorService : IDisposable
                 {
                     try
                     {
+                        processIds.Add((uint)process.Id);
                         if (!string.IsNullOrWhiteSpace(process.MainWindowTitle))
                         {
                             titles.Add(process.MainWindowTitle);
@@ -217,7 +268,112 @@ public sealed class NotificationMonitorService : IDisposable
             }
         }
 
+        // Process.MainWindowTitle ignores hidden/minimized-to-tray windows. Chat apps
+        // commonly keep their unread title on such a top-level window, so enumerate all
+        // top-level handles belonging to every matching process.
+        if (processIds.Count > 0)
+        {
+            NativeMethods.EnumWindows((handle, _) =>
+            {
+                try
+                {
+                    NativeMethods.GetWindowThreadProcessId(handle, out var processId);
+                    if (!processIds.Contains(processId)) return true;
+
+                    var length = NativeMethods.GetWindowTextLength(handle);
+                    if (length <= 0) return true;
+                    var buffer = new StringBuilder(length + 1);
+                    NativeMethods.GetWindowText(handle, buffer, buffer.Capacity);
+                    var title = buffer.ToString();
+                    if (!string.IsNullOrWhiteSpace(title)) titles.Add(title);
+                }
+                catch
+                {
+                    // A window can disappear while it is being enumerated.
+                }
+
+                return true;
+            }, IntPtr.Zero);
+        }
+
         return string.Join(" | ", titles.Distinct(StringComparer.Ordinal));
+    }
+
+    public static int ExtractUnreadCount(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return 0;
+
+        var maximum = 0;
+        foreach (var pattern in UnreadTitlePatterns)
+        {
+            foreach (Match match in pattern.Matches(title))
+            {
+                if (int.TryParse(match.Groups["count"].Value, out var value))
+                {
+                    maximum = Math.Max(maximum, value);
+                }
+            }
+        }
+
+        return maximum > 0 ? maximum : UnreadMarkerPattern.IsMatch(title) ? 1 : 0;
+    }
+
+    private static bool IsNotificationIdentityMatch(AppDefinition app, params string[] identities)
+    {
+        var normalizedIdentities = identities
+            .Select(NormalizeIdentity)
+            .Where(value => value.Length > 0)
+            .ToArray();
+        if (normalizedIdentities.Length == 0) return false;
+
+        var hints = (app.NotificationNames ?? [])
+            .Concat(app.Keywords ?? [])
+            .Concat(app.ProcessNames ?? [])
+            .Concat((app.ExecutableNames ?? []).Select(Path.GetFileNameWithoutExtension))
+            .Append(app.DisplayName)
+            .SelectMany(value => (value ?? string.Empty).Split(['/', '|'],
+                StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Select(NormalizeIdentity)
+            .Where(value => value.Length >= 2)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return normalizedIdentities.Any(identity => hints.Any(hint =>
+            identity.Contains(hint, StringComparison.Ordinal) ||
+            hint.Contains(identity, StringComparison.Ordinal)));
+    }
+
+    private static string NormalizeIdentity(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        return new string(value.Where(char.IsLetterOrDigit)
+            .Select(char.ToLowerInvariant)
+            .ToArray());
+    }
+
+    private static void MergeMaximum(Dictionary<string, int> target,
+        IReadOnlyDictionary<string, int> source)
+    {
+        foreach (var pair in source)
+        {
+            target[pair.Key] = Math.Max(target.GetValueOrDefault(pair.Key), pair.Value);
+        }
+    }
+
+    private void ApplyTestOverride(Dictionary<string, int> counts)
+    {
+        lock (_sync)
+        {
+            if (_testAppId is null) return;
+            if (DateTimeOffset.Now >= _testUntil)
+            {
+                _testAppId = null;
+                _testCount = 0;
+                return;
+            }
+
+            counts[_testAppId] = Math.Max(counts.GetValueOrDefault(_testAppId), _testCount);
+        }
     }
 
     private void PublishIfChanged(Dictionary<string, int> counts)

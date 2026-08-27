@@ -62,6 +62,9 @@ public partial class MainWindow : Window
         }
     }
 
+    private void NotificationTestButton_Click(object sender, RoutedEventArgs e) =>
+        _viewModel.TriggerNotificationTest();
+
     private async void AppLaunchButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: AppItemViewModel app })
